@@ -1,4 +1,5 @@
 import pandas as pd
+import matplotlib.pyplot as plt
 import numpy as np
 import yfinance as yf
 from tickers import tickers
@@ -49,10 +50,11 @@ data = close_long.merge(volume_long,on=["Date","Ticker"],how="inner")
 data = data.sort_values(["Ticker","Date"]).reset_index(drop = True)
 data["Date"] = pd.to_datetime(data["Date"])
 
+data["DailyReturn"] = (data.groupby("Ticker")["Close"].pct_change())
+
+
+data["FutureReturn20"] = ((data.groupby("Ticker")["Close"].shift(-20)/data["Close"])-1)
 
 data.to_csv("data.csv")
 
 
-ticker_counts = (data.groupby("Ticker").size().sort_values())
-
-print(data.isna().sum())
