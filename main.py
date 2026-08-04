@@ -57,4 +57,43 @@ data["FutureReturn20"] = ((data.groupby("Ticker")["Close"].shift(-20)/data["Clos
 
 data.to_csv("data.csv")
 
+#Preparing SPY data
+
+
+spy_close = spy_data["Close"].squeeze()
+spy = (spy_close.rename("SPYClose").reset_index())
+
+spy["Date"] = pd.to_datetime(spy["Date"])
+
+
+spy["SPYReturn20"] = (spy["SPYClose"].shift(-20) / spy["SPYClose"]  - 1)
+
+data = data.merge(spy[["Date","SPYClose","SPYReturn20"]],on="Date",how="left")
+
+
+data["NetReturn20"] = data["FutureReturn20"] - data["SPYReturn20"]
+
+print(data)
+
+
+#Focusing on 4 factors, Momentum, Volatility, Volume Ratio, Short term Return
+
+### Momentum
+
+grouped_close = data.groupby("Ticker")["Close"]
+
+data["Momentum60_5"] = grouped_close.shift(5)/grouped_close.shift(60) -1
+
+
+
+
+
+
+
+
+
+
+
+
+
 
