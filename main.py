@@ -84,6 +84,48 @@ grouped_close = data.groupby("Ticker")["Close"]
 
 data["Momentum60_5"] = grouped_close.shift(5)/grouped_close.shift(60) -1
 
+### Volatility
+
+data["Volatility20"] = data.groupby("Ticker")["DailyReturn"].transform(lambda x: x.rolling(20).std())
+
+### Volume Ratio
+
+data["AvgVolume20"] = data.groupby("Ticker")["Volume"].transform(lambda x: x.rolling(20).mean())
+
+data["VolumeRatio"] = data["Volume"]/data["AvgVolume20"]
+
+data["LogVolumeRatio"] = data["VolumeRatio"].transform(np.log)
+
+data = data.replace([np.inf,-np.inf],np.nan)
+
+### Short-Term return
+
+
+data["Return5"] = data["Close"]/grouped_close.shift(5) - 1
+
+
+########## Defining features and target
+
+
+features = ["Momentum60_5","Volatility20","LogVolumeRatio","Return5"]
+
+target = "NetReturn20"
+
+
+model_data = data[ ["Date","Ticker"] + features + [target]].copy()
+
+model_data = model_data.dropna()
+
+
+
+########## Preproccesing
+
+
+
+
+
+
+
 
 
 
