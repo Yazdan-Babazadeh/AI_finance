@@ -1,4 +1,5 @@
 import pandas as pd
+import statsmodels.api as sm
 import matplotlib.pyplot as plt
 import numpy as np
 import yfinance as yf
@@ -55,7 +56,6 @@ data["DailyReturn"] = (data.groupby("Ticker")["Close"].pct_change())
 
 data["FutureReturn20"] = ((data.groupby("Ticker")["Close"].shift(-20)/data["Close"])-1)
 
-data.to_csv("data.csv")
 
 #Preparing SPY data
 
@@ -73,7 +73,6 @@ data = data.merge(spy[["Date","SPYClose","SPYReturn20"]],on="Date",how="left")
 
 data["NetReturn20"] = data["FutureReturn20"] - data["SPYReturn20"]
 
-print(data)
 
 
 #Focusing on 4 factors, Momentum, Volatility, Volume Ratio, Short term Return
@@ -91,7 +90,6 @@ data["Volatility20"] = data.groupby("Ticker")["DailyReturn"].transform(lambda x:
 ### Volume Ratio
 
 data["AvgVolume20"] = data.groupby("Ticker")["Volume"].transform(lambda x: x.rolling(20).mean())
-
 data["VolumeRatio"] = data["Volume"]/data["AvgVolume20"]
 
 data["LogVolumeRatio"] = data["VolumeRatio"].transform(np.log)
@@ -120,16 +118,47 @@ model_data = model_data.dropna()
 
 ########## Preproccesing
 
+standardized_features = []
+for feature in features:
+
+    new_name = feature + "_z"
+
+    model_data[new_name] = model_data.groupby("Date")[feature].transform(lambda x: (x-x.mean())/x.std())
+    standardized_features.append(new_name)
 
 
+model_data = model_data.replace(
+    [np.inf, -np.inf],
+    np.nan
+)
+
+model_data = model_data.dropna(
+    subset=standardized_features + [target]
+).reset_index(drop=True)
+
+model_data.to_csv("data.csv")
+######### Splitting Data
 
 
+Train = model_data[model_data["Date"]< "2022-01-01"].copy()
+Validation = model_data[(model_data["Date"] >= "2022-01-01") & (model_data["Date"] < "2024-01-01")].copy()
+
+Test = model_data[model_data["Date"] >= "2024-01-01"].copy()
+
+######### Linear Regression
 
 
+X_train = Train[standardized_features]
+y_train = Train[target]
 
+X_train = sm.add_constant(X_train)
 
+model = sm.OLS(
+    y_train,
+    X_train
+).fit()
 
-
+print(model.summary())
 
 
 
