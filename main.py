@@ -147,6 +147,7 @@ Test = model_data[model_data["Date"] >= "2024-01-01"].copy()
 
 ######### Linear Regression
 
+###### Training:
 
 X_train = Train[standardized_features]
 y_train = Train[target]
@@ -160,10 +161,28 @@ model = sm.OLS(
 
 print(model.summary())
 
+##### Validation:
+
+x_validation = Validation[standardized_features]
+y_train = Validation[target]
+
+x_validation = sm.add_constant(
+    x_validation,
+    has_constant="add"
+)
+
+Validation["PredictedReturn"] = model.predict(x_validation)
+
+actual = Validation[target]
+predicted = Validation["PredictedReturn"]
 
 
+oos_r2 = 1 - (
+    ((actual - predicted) ** 2).sum()
+    / (actual ** 2).sum()
+)
 
-
+print("Validation out-of-sample R²:", oos_r2)
 
 
 
