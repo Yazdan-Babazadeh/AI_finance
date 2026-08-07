@@ -184,6 +184,4 @@ oos_r2 = 1 - (
 
 print("Validation out-of-sample R²:", oos_r2)
 
-
-
-
+########
