@@ -157,9 +157,13 @@ X_train = sm.add_constant(X_train)
 model = sm.OLS(
     y_train,
     X_train
-).fit()
+).fit(
+    cov_type="cluster",
+    cov_kwds={
+        "groups": Train["Date"]
+    }
+)
 
-print(model.summary())
 
 ##### Validation:
 
@@ -182,6 +186,25 @@ oos_r2 = 1 - (
     / (actual ** 2).sum()
 )
 
-print("Validation out-of-sample R²:", oos_r2)
 
-########
+########## Backtesting:
+
+
+validation_dates = Validation["Date"].drop_duplicates().sort_values()
+rebalance_dates = validation_dates.iloc[::20]
+
+portfolio_data = Validation[Validation["Date"].isin(rebalance_dates)].copy()
+
+portfolio_data["Rank"] = (portfolio_data.groupby("Date")["PredictedReturn"].rank(pct=True))
+
+portfolio_data["Position"] = 0
+
+portfolio_data.loc[portfolio_data["Rank"]>0.8,"Position"] = 1
+portfolio_data.loc[portfolio_data["Rank"]<0.2,"Position"] = -1
+
+print(portfolio_data.head(50))
+print(portfolio_data.columns)
+
+
+
+
