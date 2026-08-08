@@ -202,9 +202,21 @@ portfolio_data["Position"] = 0
 portfolio_data.loc[portfolio_data["Rank"]>0.8,"Position"] = 1
 portfolio_data.loc[portfolio_data["Rank"]<0.2,"Position"] = -1
 
-print(portfolio_data.head(50))
-print(portfolio_data.columns)
+
+long_returns = (portfolio_data[portfolio_data["Position"]==1].groupby("Date")[target].mean())
+
+short_returns = (portfolio_data[portfolio_data["Position"] == -1].groupby("Date")[target].mean())
 
 
 
+backtest = pd.DataFrame({"LongReturn": long_returns, "ShortReturn": short_returns})
 
+backtest["LongShortReturn"] = backtest["LongReturn"] - backtest["ShortReturn"]
+
+backtest["CumulativeReturn"] = (1+backtest["LongShortReturn"]).cumprod()
+
+#plt.plot(backtest.index,backtest["CumulativeReturn"])
+#plt.show()
+
+sharp_ratio = (backtest["LongShortReturn"].mean()*np.sqrt(12.6))/backtest["LongShortReturn"].std()
+print(sharp_ratio)
