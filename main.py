@@ -3,6 +3,9 @@ import statsmodels.api as sm
 import matplotlib.pyplot as plt
 import numpy as np
 import yfinance as yf
+import cvxpy as cp
+from sklearn.covariance import LedoitWolf
+
 from tickers import tickers
 benchmark = "SPY"
 
@@ -253,12 +256,25 @@ for current_date in rebalance_dates:
 
     past_returns = past_returns.tail(lookback)
                            
+    # normal method
 
     Sigma_daily = past_returns.cov().values
 
     Sigma = 20*Sigma_daily
 
-    import cvxpy as cp
+    print("Normal Method: ",Sigma)
+
+    #shrinkage method:
+
+
+    lw = LedoitWolf()
+    lw.fit(past_returns)
+    Sigma_daily = lw.covariance_
+    Sigma = 20 * Sigma_daily
+
+    print("Shrinkage Method: ", Sigma)
+
+    print("amount of shrinkage: ", lw.shrinkage_)
 
     n = len(Mu)
 
@@ -273,6 +289,8 @@ for current_date in rebalance_dates:
     objective = cp.Maximize(expected_portfolio_return - risk_aversion*portfolio_variance)
 
     constraints = [cp.sum(w) ==0, cp.norm1(w) <=2, w<= 0.05, w>=-0.05]
+
+    #constraints = [cp.sum(w) ==1, cp.norm1(w) <=2]
 
     problem = cp.Problem(objective, constraints)
 
@@ -297,6 +315,7 @@ for current_date in rebalance_dates:
 
 portfolio_results = pd.DataFrame(portfolio_results)
 
+print(portfolio_results)
 
 portfolio_results["CumulativeRealizedReturn"] = ( 1 + portfolio_results["RealizedReturn"]).cumprod()
 
