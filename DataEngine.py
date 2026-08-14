@@ -2,12 +2,14 @@ import yfinance as yf
 import pandas as pd
 
 class DataEngine:
-    def __init__(self,tickers,benchmark, start_date,end_date):
+    def __init__(self,tickers,benchmark, start_date,end_date,forecast_horizon):
 
         self.tickers = tickers
         self.benchmark = benchmark
         self.start_date = start_date
         self.end_date = end_date
+        self.forecast_horizon = forecast_horizon
+        self.data = None
 
     def download_data(self):
 
@@ -21,15 +23,15 @@ class DataEngine:
 
         volume_long = (volume.rename_axis(index="Date", columns = "Ticker").stack().rename("Volume").reset_index())
 
-        data = close_long.merge(volume_long, on=["Date","Ticker"],how="inner")
+        self.data = close_long.merge(volume_long, on=["Date","Ticker"],how="inner")
 
-        data = data.sort_values(["Ticker","Date"]).reset_index(drop=True)
+        self.data = self.data.sort_values(["Ticker","Date"]).reset_index(drop=True)
 
-        data["Date"] = pd.to_datetime(data["Date"])
+        self.data["Date"] = pd.to_datetime(self.data["Date"])
 
-        data["DailyReturn"] = (data.groupby("Ticker")["Close"].pct_change())
+        self.data["DailyReturn"] = (self.data.groupby("Ticker")["Close"].pct_change())
 
-        data["FutureReturn20"] = (data.groupby("Ticker")["Close"].shift(-20)/data["Close"]-1)
+        self.data[f"FutureReturn{self.forecast_horizon}"] = (self.data.groupby("Ticker")["Close"].shift(-self.forecast_horizon)/self.data["Close"]-1)
 
         spy_close = spy_data["Close"].squeeze()
 
@@ -37,13 +39,13 @@ class DataEngine:
 
         spy["Date"] = pd.to_datetime(spy["Date"])
 
-        spy["SPYReturn20"] = (spy["SPYClose"].shift(-20) / spy["SPYClose"] -1)
+        spy[f"SPYReturn{self.forecast_horizon}"] = (spy["SPYClose"].shift(-self.forecast_horizon) / spy["SPYClose"] -1)
 
-        data = data.merge(spy[["Date","SPYClose","SPYReturn20"]],on="Date",how="left")
+        self.data = self.data.merge(spy[["Date","SPYClose",f"SPYReturn{self.forecast_horizon}"]],on="Date",how="left")
 
-        data["NetReturn20"] = data["FutureReturn20"] - data["SPYReturn20"]
+        self.data[f"NetReturn{self.forecast_horizon}"] = self.data[f"FutureReturn{self.forecast_horizon}"] - self.data[f"SPYReturn{self.forecast_horizon}"]
 
-        return data
+       # return self.data
 
 
 
