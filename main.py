@@ -8,13 +8,19 @@ from sklearn.covariance import LedoitWolf
 from DataEngine import DataEngine
 from tickers import tickers
 from FactorEngine import FactorEngine
+from PreprocessEngine import PreprocessEngine
+
 benchmark = "SPY"
+
 
 # Gathering Data
 
 start_date = "2015-01-01"
 end_date = "2026-01-01"
+validation_date = "2022-01-01"
+test_date = "2024-01-01"
 forecast_horizon = 20
+
 
 
 DE20 = DataEngine(tickers, benchmark, start_date, end_date, forecast_horizon)
@@ -37,72 +43,42 @@ FE.add_shortterm_return(20)
 
 model_data = FE.build_model_data()
 
-#grouped_close = data.groupby("Ticker")["Close"]
-#
-#data["Momentum60_5"] = grouped_close.shift(5)/grouped_close.shift(60) -1
-#
-#### Volatility
-#
-#data["Volatility20"] = data.groupby("Ticker")["DailyReturn"].transform(lambda x: x.rolling(20).std())
-#
-#### Volume Ratio
-#
-#data["AvgVolume20"] = data.groupby("Ticker")["Volume"].transform(lambda x: x.rolling(20).mean())
-#data["VolumeRatio"] = data["Volume"]/data["AvgVolume20"]
-#
-#data["LogVolumeRatio"] = data["VolumeRatio"].transform(np.log)
-#
-#data = data.replace([np.inf,-np.inf],np.nan)
-#
-#### Short-Term return
-#
-#
-#data["Return5"] = data["Close"]/grouped_close.shift(5) - 1
-#
-#
-########### Defining features and target
-#
-#
-#features = ["Momentum60_5","Volatility20","LogVolumeRatio","Return5"]
-#
-#target = "NetReturn20"
-#
-#
-#model_data = data[ ["Date","Ticker"] + features + [target]].copy()
-#
-#model_data = model_data.dropna()
-#
-#
+PE = PreprocessEngine(model_data,FE)
 
-########## Preproccesing
+PE.normalize()
 
-standardized_features = []
-for feature in FE.features:
-
-    new_name = feature + "_z"
-
-    model_data[new_name] = model_data.groupby("Date")[feature].transform(lambda x: (x-x.mean())/x.std())
-    standardized_features.append(new_name)
+standardized_features, Train, Validation, Test = PE.splitting(validation_date,test_date)
 
 
-model_data = model_data.replace(
-    [np.inf, -np.inf],
-    np.nan
-)
-
-model_data = model_data.dropna(
-    subset=standardized_features + [FE.target]
-).reset_index(drop=True)
-
-model_data.to_csv("data.csv")
-######### Splitting Data
-
-
-Train = model_data[model_data["Date"]< "2022-01-01"].copy()
-Validation = model_data[(model_data["Date"] >= "2022-01-01") & (model_data["Date"] < "2024-01-01")].copy()
-
-Test = model_data[model_data["Date"] >= "2024-01-01"].copy()
-
+###### preprocess
+#
+#standardized_features = []
+#for feature in FE.features:
+#
+#    new_name = feature + "_z"
+#
+#    model_data[new_name] = model_data.groupby("Date")[feature].transform(lambda x: (x-x.mean())/x.std())
+#    standardized_features.append(new_name)
+#
+#
+#model_data = model_data.replace(
+#    [np.inf, -np.inf],
+#    np.nan
+#)
+#
+#model_data = model_data.dropna(
+#    subset=standardized_features + [FE.target]
+#).reset_index(drop=True)
+#
+#model_data.to_csv("data.csv")
+########## Splitting Data
+#
+#
+#Train = model_data[model_data["Date"]< "2022-01-01"].copy()
+#Validation = model_data[(model_data["Date"] >= "2022-01-01") & (model_data["Date"] < "2024-01-01")].copy()
+#
+#Test = model_data[model_data["Date"] >= "2024-01-01"].copy()
+#
 ######### Linear Regression
 
 ###### Training:
