@@ -9,7 +9,8 @@ from DataEngine import DataEngine
 from tickers import tickers
 from FactorEngine import FactorEngine
 from PreprocessEngine import PreprocessEngine
-
+from Training import Training
+from BackTesting import BackTesting
 benchmark = "SPY"
 
 
@@ -50,114 +51,25 @@ PE.normalize()
 standardized_features, Train, Validation, Test = PE.splitting(validation_date,test_date)
 
 
-###### preprocess
-#
-#standardized_features = []
-#for feature in FE.features:
-#
-#    new_name = feature + "_z"
-#
-#    model_data[new_name] = model_data.groupby("Date")[feature].transform(lambda x: (x-x.mean())/x.std())
-#    standardized_features.append(new_name)
-#
-#
-#model_data = model_data.replace(
-#    [np.inf, -np.inf],
-#    np.nan
-#)
-#
-#model_data = model_data.dropna(
-#    subset=standardized_features + [FE.target]
-#).reset_index(drop=True)
-#
-#model_data.to_csv("data.csv")
-########## Splitting Data
-#
-#
-#Train = model_data[model_data["Date"]< "2022-01-01"].copy()
-#Validation = model_data[(model_data["Date"] >= "2022-01-01") & (model_data["Date"] < "2024-01-01")].copy()
-#
-#Test = model_data[model_data["Date"] >= "2024-01-01"].copy()
-#
-######### Linear Regression
-
 ###### Training:
 
-X_train = Train[standardized_features]
-y_train = Train[FE.target]
+TR = Training("LR",Train,Validation,Test,standardized_features,FE)
 
-X_train = sm.add_constant(X_train)
+model = TR.training()
 
-model = sm.OLS(
-    y_train,
-    X_train
-).fit(
-    cov_type="cluster",
-    cov_kwds={
-        "groups": Train["Date"]
-    }
-)
-
-
-##### Validation:
-
-x_validation = Validation[standardized_features]
-y_train = Validation[FE.target]
-
-x_validation = sm.add_constant(
-    x_validation,
-    has_constant="add"
-)
-
-Validation["PredictedReturn"] = model.predict(x_validation)
-
-actual = Validation[FE.target]
-predicted = Validation["PredictedReturn"]
-
-
-oos_r2 = 1 - (
-    ((actual - predicted) ** 2).sum()
-    / (actual ** 2).sum()
-)
-
-
+Validation, oos_r2 = TR.validation()
 ########## Backtesting:
 
-
-validation_dates = Validation["Date"].drop_duplicates().sort_values()
-rebalance_dates = validation_dates.iloc[::20]
-
-portfolio_data = Validation[Validation["Date"].isin(rebalance_dates)].copy()
-
-portfolio_data["Rank"] = (portfolio_data.groupby("Date")["PredictedReturn"].rank(pct=True))
-
-portfolio_data["Position"] = 0
-
-portfolio_data.loc[portfolio_data["Rank"]>0.8,"Position"] = 1
-portfolio_data.loc[portfolio_data["Rank"]<0.2,"Position"] = -1
-
-
-long_returns = (portfolio_data[portfolio_data["Position"]==1].groupby("Date")[FE.target].mean())
-
-short_returns = (portfolio_data[portfolio_data["Position"] == -1].groupby("Date")[FE.target].mean())
+BT = BackTesting(forecast_horizon,Validation,FE)
 
 
 
-backtest = pd.DataFrame({"LongReturn": long_returns, "ShortReturn": short_returns})
+rebalance_dates, portfolio_data =BT.construct_portfolio()
 
-backtest["LongShortReturn"] = backtest["LongReturn"] - backtest["ShortReturn"]
+BT.backtesting_2080()
 
-backtest["CumulativeReturn"] = (1+backtest["LongShortReturn"]).cumprod()
+######## Portfolio Optimization
 
-#plt.plot(backtest.index,backtest["CumulativeReturn"])
-#plt.show()
-
-sharp_ratio = (backtest["LongShortReturn"].mean()*np.sqrt(12.6))/backtest["LongShortReturn"].std()
-
-print("sharpe ratio for 20-80 portfolio equals:",sharp_ratio)
-
-
-#### Construction of portfolio optimization
 
 
 lookback = 60
@@ -192,7 +104,7 @@ for current_date in rebalance_dates:
 
     Sigma = 20*Sigma_daily
 
-    print("Normal Method: ",Sigma)
+    #print("Normal Method: ",Sigma)
 
     #shrinkage method:
 
@@ -202,9 +114,9 @@ for current_date in rebalance_dates:
     Sigma_daily = lw.covariance_
     Sigma = 20 * Sigma_daily
 
-    print("Shrinkage Method: ", Sigma)
+    #print("Shrinkage Method: ", Sigma)
 
-    print("amount of shrinkage: ", lw.shrinkage_)
+    #print("amount of shrinkage: ", lw.shrinkage_)
 
     n = len(Mu)
 
@@ -245,7 +157,7 @@ for current_date in rebalance_dates:
 
 portfolio_results = pd.DataFrame(portfolio_results)
 
-print(portfolio_results)
+#print(portfolio_results)
 
 portfolio_results["CumulativeRealizedReturn"] = ( 1 + portfolio_results["RealizedReturn"]).cumprod()
 
@@ -260,4 +172,4 @@ periods_per_year = 252/20
 
 optimized_sharpe = (portfolio_results["RealizedReturn"].mean()*np.sqrt(12.6))/portfolio_results["RealizedReturn"].std()
 
-print("Optimized Sharpe Ratio:",optimized_sharpe)
+#print("Optimized Sharpe Ratio:",optimized_sharpe)
