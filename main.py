@@ -42,7 +42,7 @@ factor_engine = FactorEngine(data_engine)
 factor_engine.add_momentum(60,5)
 factor_engine.add_volatility(20)
 factor_engine.add_volume(20)
-factor_engine.add_shortterm_return(5)
+#factor_engine.add_shortterm_return(5)
 
 model_data = factor_engine.build_model_data()
 
@@ -60,18 +60,20 @@ learning_engine = LearningEngine("LR",train_data,validation_data,test_data,stand
 model = learning_engine.train()
 
 validation_data, oos_r2 = learning_engine.validate()
+
+print(oos_r2)
 ########## Backtesting:
 
-backtest_engine = BacktestEngine(forecast_horizon,validation_data,factor_engine)
+#backtest_engine = BacktestEngine(forecast_horizon,validation_data,factor_engine)
 
-rebalance_dates, portfolio_data =backtest_engine.construct_portfolio()
+#rebalance_dates, portfolio_data =backtest_engine.construct_portfolio()
 
-backtest_engine.backtest_rank_portfolio()
+#backtest_engine.backtest_rank_portfolio()
 
 ######### Portfolio Optimization
 
-lookback = 60
-risk_aversion = 5
+#lookback = 60
+#risk_aversion = 5
 
-backtest_engine.backtest_optimized_portfolio(lookback,risk_aversion,data)
+#backtest_engine.backtest_optimized_portfolio(lookback,risk_aversion,data)
 #
