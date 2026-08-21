@@ -24,7 +24,7 @@ class LearningEngine:
             
 
             self.model = sm.OLS(y_train,x_train).fit(cov_type="cluster",cov_kwds={"groups": self.train_data["Date"]})
-            print(self.model.summary())
+           # print(self.model.summary())
         return self.model
 
     def validate(self):

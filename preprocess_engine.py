@@ -26,9 +26,44 @@ class PreprocessEngine:
 
     def split_data(self,start_date,validation_date):
 
-        train = self.model_data[self.model_data["Date"]<start_date].copy()
-        validation = self.model_data[(self.model_data["Date"] >= start_date) & (self.model_data["Date"] < validation_date)].copy()
-        test = self.model_data[self.model_data["Date"] >= validation_date].copy()
+        #train = self.model_data[self.model_data["Date"]<start_date].copy()
+        #validation = self.model_data[(self.model_data["Date"] >= start_date) & (self.model_data["Date"] < validation_date)].copy()
+        #test = self.model_data[self.model_data["Date"] >= validation_date].copy()
+        
+        start_date = pd.Timestamp(start_date)
+        validation_date = pd.Timestamp(validation_date)
+        forecast_horizon = self.factor_engine.data_engine.forecast_horizon
+
+        dates = (
+                self.model_data["Date"]
+                .drop_duplicates()
+                .sort_values()
+                .reset_index(drop=True)
+                )
+
+        dates_before_validation = dates[
+                dates < start_date
+                ]
+
+        dates_before_test = dates[
+                dates <validation_date
+                ]
+        train_cutoff = dates_before_validation.iloc[
+                -forecast_horizon
+                ]
+        validation_cutoff = dates_before_test.iloc[
+                -forecast_horizon
+                ]
+        train = self.model_data[
+                self.model_data["Date"]<train_cutoff
+                ].copy()
+        validation = self.model_data[
+                (self.model_data["Date"] >= start_date)
+                &
+                (self.model_data["Date"] < validation_cutoff)].copy()
+
+        test = self.model_data[
+                self.model_data["Date"] >= validation_date].copy()
 
         return self.standardized_features ,train, validation, test
 

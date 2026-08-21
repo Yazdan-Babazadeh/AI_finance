@@ -5,6 +5,7 @@ import numpy as np
 import yfinance as yf
 import cvxpy as cp
 from sklearn.covariance import LedoitWolf
+from itertools import combinations
 
 from data_engine import DataEngine
 from tickers import tickers
@@ -22,58 +23,95 @@ start_date = "2015-01-01"
 end_date = "2026-01-01"
 validation_date = "2022-01-01"
 test_date = "2024-01-01"
-forecast_horizon = 20
 
+forecast_horizon_values = [10,20,30,40,50,60,70,80,90,100,200]
 
+full_results = []
+for forecast_horizon in forecast_horizon_values:
 
-data_engine = DataEngine(tickers, benchmark, start_date, end_date, forecast_horizon)
+    
+    
+    data_engine = DataEngine(tickers, benchmark, start_date, end_date, forecast_horizon)
+    
+    data_engine.download_data()
+    
+    data = data_engine.data
+    
+    
+    #Focusing on 4 factors, Momentum, Volatility, Volume Ratio, Short term Return
+    
+    ### Momentum
+    
+    factor_engine = FactorEngine(data_engine)
+    
+    factor_engine.add_momentum(60,5)
+    factor_engine.add_volatility(20)
+    factor_engine.add_volume(20)
+    factor_engine.add_shortterm_return(5)
+    
+    model_data = factor_engine.build_model_data()
+    
+    
+    
+    
+    
+    preprocess_engine = PreprocessEngine(model_data,factor_engine)
+    
+    preprocess_engine.normalize()
+    
+    
+    standardized_features, train_data, validation_data, test_data = preprocess_engine.split_data(validation_date,test_date)
+    
+    
+    results = []
+    features = factor_engine.features
+    
+    for n in range(1,len(features)+1):
+    
+        for subset in combinations(features,n):
+    
+    
+            standardized_subset = [feature +"_z" for feature in subset]
+    
+    
+            learning_engine = LearningEngine("LR",train_data,validation_data,test_data,standardized_subset,factor_engine)
+    
+            model = learning_engine.train()
+    
+            _, oos_r2 = learning_engine.validate()
+    
+            results.append({
+                "Factors": subset,
+                "N_Factors": len(subset),
+                "Validation_R2": oos_r2
+                })
+    
+    results = pd.DataFrame(results)
+    results = results.sort_values("Validation_R2",ascending=False).reset_index(drop=True)
+    best = results.loc[0]
 
-data_engine.download_data()
+    full_results.append({
+        "Forecast_Horizon": forecast_horizon,
+        "Factors": best["Factors"],
+        "Validation_R2": best["Validation_R2"]
+    })
 
-data = data_engine.data
+full_results = pd.DataFrame(full_results)
 
+print(full_results)
 
-#Focusing on 4 factors, Momentum, Volatility, Volume Ratio, Short term Return
-
-### Momentum
-
-factor_engine = FactorEngine(data_engine)
-
-factor_engine.add_momentum(60,5)
-factor_engine.add_volatility(20)
-factor_engine.add_volume(20)
-#factor_engine.add_shortterm_return(5)
-
-model_data = factor_engine.build_model_data()
-
-preprocess_engine = PreprocessEngine(model_data,factor_engine)
-
-preprocess_engine.normalize()
-
-standardized_features, train_data, validation_data, test_data = preprocess_engine.split_data(validation_date,test_date)
-
-
-###### Training:
-
-learning_engine = LearningEngine("LR",train_data,validation_data,test_data,standardized_features,factor_engine)
-
-model = learning_engine.train()
-
-validation_data, oos_r2 = learning_engine.validate()
-
-print(oos_r2)
-########## Backtesting:
-
-#backtest_engine = BacktestEngine(forecast_horizon,validation_data,factor_engine)
-
-#rebalance_dates, portfolio_data =backtest_engine.construct_portfolio()
-
-#backtest_engine.backtest_rank_portfolio()
-
-######### Portfolio Optimization
-
-#lookback = 60
-#risk_aversion = 5
-
-#backtest_engine.backtest_optimized_portfolio(lookback,risk_aversion,data)
-#
+    ########## Backtesting:
+    
+    #backtest_engine = BacktestEngine(forecast_horizon,validation_data,factor_engine)
+    
+    #rebalance_dates, portfolio_data =backtest_engine.construct_portfolio()
+    
+    #backtest_engine.backtest_rank_portfolio()
+    
+    ######### Portfolio Optimization
+    
+    #lookback = 60
+    #risk_aversion = 5
+    
+    #backtest_engine.backtest_optimized_portfolio(lookback,risk_aversion,data)
+    #
