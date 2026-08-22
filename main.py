@@ -19,13 +19,13 @@ benchmark = "SPY"
 
 # Gathering Data
 
-start_date = "2015-01-01"
+start_date = "2010-01-01"
 end_date = "2026-01-01"
-validation_date = "2022-01-01"
+validation_date = "2017-01-01"
 test_date = "2024-01-01"
 
-forecast_horizon_values = [10,20,30,40,50,60,70,80,90,100,200]
-
+forecast_horizon_values = [10,20,50,100,200,300,400,500]
+max_horizon = max(forecast_horizon_values)
 full_results = []
 for forecast_horizon in forecast_horizon_values:
 
@@ -60,7 +60,7 @@ for forecast_horizon in forecast_horizon_values:
     preprocess_engine.normalize()
     
     
-    standardized_features, train_data, validation_data, test_data = preprocess_engine.split_data(validation_date,test_date)
+    standardized_features, train_data, validation_data, test_data = preprocess_engine.split_data(validation_date,test_date,max_horizon)
     
     
     results = []
@@ -74,7 +74,7 @@ for forecast_horizon in forecast_horizon_values:
             standardized_subset = [feature +"_z" for feature in subset]
     
     
-            learning_engine = LearningEngine("LR",train_data,validation_data,test_data,standardized_subset,factor_engine)
+            learning_engine = LearningEngine("LR",train_data,validation_data.copy(),test_data,standardized_subset,factor_engine)
     
             model = learning_engine.train()
     
@@ -93,11 +93,14 @@ for forecast_horizon in forecast_horizon_values:
     full_results.append({
         "Forecast_Horizon": forecast_horizon,
         "Factors": best["Factors"],
-        "Validation_R2": best["Validation_R2"]
+        "Validation_R2": best["Validation_R2"],
+        "Train_Rows": len(train_data),
+        "Validation_Rows": len(validation_data),
+        "Validation_Dates": validation_data["Date"].nunique()
     })
 
 full_results = pd.DataFrame(full_results)
-
+full_results.to_csv("results.csv",index=False)
 print(full_results)
 
     ########## Backtesting:

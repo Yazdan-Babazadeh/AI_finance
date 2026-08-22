@@ -24,7 +24,7 @@ class PreprocessEngine:
             self.model_data = self.model_data.dropna(subset=self.standardized_features + [self.factor_engine.target]).reset_index(drop=True)
 
 
-    def split_data(self,start_date,validation_date):
+    def split_data(self,start_date,validation_date,max_horizon):
 
         #train = self.model_data[self.model_data["Date"]<start_date].copy()
         #validation = self.model_data[(self.model_data["Date"] >= start_date) & (self.model_data["Date"] < validation_date)].copy()
@@ -52,7 +52,7 @@ class PreprocessEngine:
                 -forecast_horizon
                 ]
         validation_cutoff = dates_before_test.iloc[
-                -forecast_horizon
+                -max_horizon
                 ]
         train = self.model_data[
                 self.model_data["Date"]<train_cutoff
