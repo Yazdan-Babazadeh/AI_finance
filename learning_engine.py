@@ -2,7 +2,7 @@ import statsmodels.api as sm
 
 class LearningEngine:
 
-    def __init__(self, model_type, train, validation, test, standardized_features,factor_engine):
+    def __init__(self, model_type, train, validation, test, standardized_features,factor_engine,jump):
 
         self.model_type = model_type
         self.train_data = train
@@ -11,7 +11,7 @@ class LearningEngine:
         self.standardized_features = standardized_features
         self.model = None
         self.factor_engine = factor_engine
-
+        self.jump = jump
     def train(self):
 
         if self.model_type == "LR":
@@ -20,8 +20,8 @@ class LearningEngine:
             y_train = self.train_data[self.factor_engine.target]
 
             x_train = sm.add_constant(x_train)
-            
-            
+
+
 
             self.model = sm.OLS(y_train,x_train).fit(cov_type="cluster",cov_kwds={"groups": self.train_data["Date"]})
            # print(self.model.summary())
@@ -29,21 +29,31 @@ class LearningEngine:
 
     def validate(self):
         if self.model_type == "LR":
-	        x_validation = self.validation_data[self.standardized_features]
-	        
-	        x_validation = sm.add_constant(x_validation,has_constant="add")
-	
-	        self.validation_data["PredictedReturn"] = self.model.predict(x_validation)
-	
-	        actual = self.validation_data[self.factor_engine.target]
-	
-	        predicted = self.validation_data["PredictedReturn"]
-	
-	        oos_r2 = 1-(
-	                ((actual-predicted)**2).sum()
-	                / (actual**2).sum()
-	                )
-	
-        return self.validation_data,oos_r2
-
-
+            x_validation = self.validation_data[self.standardized_features]
+            x_validation = sm.add_constant(
+                x_validation,
+                has_constant="add"
+            )
+            self.validation_data["PredictedReturn"] = self.model.predict(
+                x_validation
+            )
+            # Take every jump-th unique date
+            validation_dates = (
+                self.validation_data["Date"]
+                .drop_duplicates()
+                .sort_values()
+            )
+            sampled_dates = validation_dates.iloc[
+                ::self.jump
+            ]
+            # Keep all stocks for those dates
+            independent_validation = self.validation_data[
+                self.validation_data["Date"].isin(sampled_dates)
+            ]
+            actual = independent_validation[self.factor_engine.target]
+            predicted = independent_validation["PredictedReturn"]
+            oos_r2 = 1 - (
+                ((actual - predicted) ** 2).sum()
+                / (actual ** 2).sum()
+            )
+            return independent_validation, oos_r2

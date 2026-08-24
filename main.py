@@ -21,15 +21,16 @@ benchmark = "SPY"
 
 start_date = "2010-01-01"
 end_date = "2026-01-01"
-validation_date = "2017-01-01"
-test_date = "2024-01-01"
+validation_date = "2020-01-01"
+test_date = "2026-01-01"
 
-forecast_horizon_values = [10,20,50,100,200,300,400,500]
+forecast_horizon_values = [5,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150]
+
 max_horizon = max(forecast_horizon_values)
 full_results = []
 for forecast_horizon in forecast_horizon_values:
 
-    
+    jump = forecast_horizon   
     
     data_engine = DataEngine(tickers, benchmark, start_date, end_date, forecast_horizon)
     
@@ -74,8 +75,7 @@ for forecast_horizon in forecast_horizon_values:
             standardized_subset = [feature +"_z" for feature in subset]
     
     
-            learning_engine = LearningEngine("LR",train_data,validation_data.copy(),test_data,standardized_subset,factor_engine)
-    
+            learning_engine = LearningEngine("LR",train_data,validation_data.copy(),test_data,standardized_subset,factor_engine,jump)
             model = learning_engine.train()
     
             _, oos_r2 = learning_engine.validate()
@@ -100,9 +100,11 @@ for forecast_horizon in forecast_horizon_values:
     })
 
 full_results = pd.DataFrame(full_results)
-full_results.to_csv("results.csv",index=False)
+full_results.to_csv(f"results_jump_{jump}.csv",index=False)
 print(full_results)
 
+plt.scatter(full_results["Forecast_Horizon"],full_results["Validation_R2"])
+plt.show()
     ########## Backtesting:
     
     #backtest_engine = BacktestEngine(forecast_horizon,validation_data,factor_engine)
