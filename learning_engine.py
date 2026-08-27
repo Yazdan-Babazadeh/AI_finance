@@ -3,7 +3,7 @@ from sklearn.linear_model import Lasso
 
 class LearningEngine:
 
-    def __init__(self, model_type, train, validation, test, standardized_features,factor_engine,jump,alpha):
+    def __init__(self, model_type, train, validation, test, standardized_features,factor_engine,jump,alpha,offset=0):
 
         self.model_type = model_type
         self.train_data = train
@@ -14,6 +14,8 @@ class LearningEngine:
         self.factor_engine = factor_engine
         self.jump = jump
         self.alpha = alpha
+        self.offset = offset
+
     def train(self):
  
         x_train = self.train_data[self.standardized_features]
@@ -63,7 +65,7 @@ class LearningEngine:
             .sort_values()
         )
         sampled_dates = validation_dates.iloc[
-            ::self.jump
+            self.offset::self.jump
         ]
             # Keep all stocks for those dates
         independent_validation = self.validation_data[

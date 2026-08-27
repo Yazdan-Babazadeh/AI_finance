@@ -27,9 +27,9 @@ test_date = "2026-01-01"
 
 forecast_horizon_values = [5,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150]
 
+alpha_values = [1e-5,3e-5,1e-4,3e-4,1e-3,3e-3,5e-3,1e-2]
 
 
-alpha = 0.005
 
 ############################
 
@@ -86,32 +86,57 @@ for forecast_horizon in forecast_horizon_values:
     
 
     if learning_model == "LASSO":
+        alpha_results = []
+        
+        for alpha in alpha_values:
 
-        learning_engine = LearningEngine(learning_model,train_data,validation_data.copy(),test_data,standardized_features,factor_engine,jump,alpha)
-        model = learning_engine.train()
 
-        independent_validation,oos_r2 = learning_engine.validate()
 
-        selected_factors = []
-
-        for feature,coefficient in zip(features,model.coef_):
-            if coefficient !=0:
-
-                selected_factors.append((feature,coefficient))
+            learning_engine = LearningEngine(learning_model,train_data,validation_data.copy(),test_data,standardized_features,factor_engine,jump,alpha)
+            model = learning_engine.train()
+    
+            independent_validation,oos_r2 = learning_engine.validate()
+    
+            selected_factors = []
+    
+            for feature,coefficient in zip(features,model.coef_):
+                if coefficient !=0:
+    
+                    selected_factors.append((feature,coefficient))
+    
+            alpha_results.append({
+    
+                "Alpha": alpha,
+                "Selected_Factors": selected_factors,
+                "N_Selected": len(selected_factors),
+                "Validation_R2" : oos_r2,
+                "Train_Rows": len(train_data),
+                "Validation_Rows": len(independent_validation),
+                "Validation_Dates": (independent_validation["Date"].nunique())
+                })
+        alpha_results = pd.DataFrame(alpha_results)
+        alpha_results = alpha_results.sort_values(
+                "Validation_R2",
+                ascending=False).reset_index(drop=True)
+        best_alpha_result = alpha_results.loc[0]
 
         full_results.append({
-
-            "Forecast_Horizon": forecast_horizon,
-            "Alpha": alpha,
-            "Selected_Factors": selected_factors,
-            "N Selected": len(selected_factors),
-            "Validation_R2" : oos_r2,
-            "Train_Rows": len(train_data),
-            "Validation Rows": len(independent_validation),
-            "Validation Dates": (independent_validation["Date"].nunique())
-            })
-
-
+        "Forecast_Horizon": forecast_horizon,
+        "Best_Alpha": best_alpha_result["Alpha"],
+        "Selected_Factors":
+            best_alpha_result["Selected_Factors"],
+        "N_Selected":
+            best_alpha_result["N_Selected"],
+        "Validation_R2":
+            best_alpha_result["Validation_R2"],
+        "Train_Rows": len(train_data),
+        "Validation_Rows":
+            best_alpha_result["Validation_Rows"],
+        "Validation_Dates":
+            best_alpha_result["Validation_Dates"]
+    })
+    
+    
 
     elif learning_model == "LR":
         
@@ -147,7 +172,7 @@ for forecast_horizon in forecast_horizon_values:
             "Validation_Dates": validation_data["Date"].nunique()
         })
 full_results = pd.DataFrame(full_results)
-full_results.to_csv(f"results_jump_{jump}_{learning_model}.csv",index=False)
+full_results.to_csv(f"results_jump_{jump}_{learning_model}_alpha_tunning.csv",index=False)
 print(full_results)
     
 plt.scatter(full_results["Forecast_Horizon"],full_results["Validation_R2"])
